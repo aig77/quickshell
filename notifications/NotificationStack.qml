@@ -73,8 +73,8 @@ Scope {
             id: notifColumn
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.topMargin: 22
-            anchors.rightMargin: 22
+            anchors.topMargin: 30
+            anchors.rightMargin: 30
             spacing: 8
 
             Repeater {

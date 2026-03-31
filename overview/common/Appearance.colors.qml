@@ -1,1 +1,0 @@
-/nix/store/xz561v6i7n0hz5n8c4ibsda49zmmi0zg-home-manager-files/.config/quickshell/overview/common/Appearance.colors.qml
