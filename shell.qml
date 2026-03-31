@@ -8,8 +8,10 @@ import "./overview/services/"
 import "./overview/common/"
 import "./overview/common/functions/"
 import "./overview/common/widgets/"
+import "./notifications/"
 
 ShellRoot {
   Bar {}
   Overview {}
+  NotificationStack {}
 }
