@@ -38,7 +38,7 @@ Scope {
         id: win
         anchors.top: true
         anchors.right: true
-        implicitWidth: 384
+        implicitWidth: 396
         implicitHeight: 66 + notifColumn.implicitHeight + (notifColumn.implicitHeight > 0 ? 8 : 0)
         color: "transparent"
         screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null

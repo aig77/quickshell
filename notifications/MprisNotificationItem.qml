@@ -98,7 +98,7 @@ Item {
             id: content
             anchors { top: parent.top; left: parent.left; right: parent.right }
             anchors.topMargin: 10; anchors.bottomMargin: 10
-            anchors.leftMargin: 10; anchors.rightMargin: 26
+            anchors.leftMargin: 14; anchors.rightMargin: 26
             spacing: 12
 
             // Album art
