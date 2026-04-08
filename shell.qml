@@ -10,6 +10,7 @@ import "./components/overview/common/"
 ShellRoot {
   Bar {}
   Dock {}
+  Launcher {}
   Overview {}
   NotificationStack {}
 }
