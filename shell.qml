@@ -12,6 +12,7 @@ import "./notifications/"
 
 ShellRoot {
   Bar {}
+  Dock {}
   Overview {}
   NotificationStack {}
 }
