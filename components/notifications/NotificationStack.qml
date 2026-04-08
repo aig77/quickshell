@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Services.Notifications
 import Quickshell.Services.Mpris
 import "../"
@@ -43,6 +44,7 @@ Scope {
         color: "transparent"
         mask: Region { item: notifColumn.implicitHeight > 0 ? notifColumn : null }
         screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
+        WlrLayershell.namespace: "quickshell:notifications"
 
         // MPRIS player watchers — inside PanelWindow for proper visual parenting
         Repeater {

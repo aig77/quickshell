@@ -15,6 +15,7 @@ PanelWindow {
   anchors.right: true
   implicitHeight: 46
   color: "transparent"
+  WlrLayershell.namespace: "quickshell:bar"
 
   // Center module
   Rectangle {
