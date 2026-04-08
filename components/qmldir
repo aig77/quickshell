@@ -1,3 +1,4 @@
 singleton Colors 1.0 Colors.qml
 Bar 1.0 Bar.qml
 Dock 1.0 Dock.qml
+NotificationStack 1.0 notifications/NotificationStack.qml

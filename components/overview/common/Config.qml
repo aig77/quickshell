@@ -135,7 +135,7 @@ Singleton {
         command: [
             "sh",
             "-lc",
-            "cfg=\"${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/overview/config.json\"; [ -r \"$cfg\" ] && cat \"$cfg\""
+            "cfg=\"${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/components/overview/config.json\"; [ -r \"$cfg\" ] && cat \"$cfg\""
         ]
         stdout: StdioCollector {
             id: configCollector
