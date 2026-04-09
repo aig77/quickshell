@@ -39,8 +39,9 @@ Scope {
         if (!entry) return
         const cmd = entry.command
         if (!cmd || cmd.length === 0) return
-        launchProc.command = cmd
-        launchProc.running = true
+        const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', root)
+        proc.command = cmd
+        proc.running = true
         open = false
     }
 
@@ -77,9 +78,6 @@ Scope {
             }
         }
 
-        Process {
-            id: launchProc
-        }
 
         Item {
             anchors.fill: parent
