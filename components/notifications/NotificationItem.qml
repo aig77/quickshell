@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.Notifications
+import Quickshell.Hyprland
 import "../"
 
 Item {
@@ -11,18 +12,20 @@ Item {
 
     readonly property int cardWidth: 360
 
+    property bool _shown: false
+
     width: cardWidth
-    height: dismissing ? 0 : card.implicitHeight
+    height: _shown ? card.implicitHeight : 0
     clip: true
 
     Behavior on height {
-        NumberAnimation { duration: 180; easing.type: Easing.InOutQuad }
+        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
     }
 
-    property bool dismissing: false
+    x: 360
 
-    x: 372
-    Component.onCompleted: {
+    function show() {
+        _shown = true
         slideIn.start()
     }
 
@@ -36,7 +39,7 @@ Item {
     NumberAnimation {
         id: slideIn
         target: root; property: "x"
-        from: 372; to: 0
+        from: 360; to: 0
         duration: 280; easing.type: Easing.OutCubic
     }
 
@@ -52,30 +55,26 @@ Item {
     }
 
     function startDismiss() {
-        if (dismissing) return
-        dismissing = true
+        if (slideOut.running || !_shown) return
         dismissTimer.stop()
-        fadeOut.start()
+        slideOut.start()
     }
 
     SequentialAnimation {
-        id: fadeOut
-        ParallelAnimation {
-            NumberAnimation {
-                target: root; property: "opacity"
-                to: 0; duration: 200; easing.type: Easing.InQuad
-            }
-            NumberAnimation {
-                target: root; property: "x"
-                to: 372; duration: 200; easing.type: Easing.InCubic
-            }
+        id: slideOut
+        NumberAnimation {
+            target: root; property: "x"
+            to: 360; duration: 200; easing.type: Easing.InCubic
         }
+        ScriptAction { script: root._shown = false }
+        PauseAnimation { duration: 180 }
         ScriptAction { script: root.dismissed() }
     }
 
     Rectangle {
         id: card
         width: root.cardWidth
+        anchors.bottom: parent.bottom
         implicitHeight: content.implicitHeight + 20
 
         color: Colors.bg
@@ -85,30 +84,22 @@ Item {
                     :                                                    Colors.blue
         radius: 16
 
-        // Hidden image just to probe load status
         Image {
             id: iconProbe
             source: (notif?.image?.length ?? 0) > 0 ? notif.image : (notif?.appIcon ?? "")
             visible: false
         }
 
-        // Dismiss button — top right corner
-        Text {
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.topMargin: 8
-            anchors.rightMargin: 10
-            text: "✕"
-            color: Colors.subtle
-            font { family: Colors.font; pixelSize: 11 }
-            z: 1
-            MouseArea {
-                anchors.fill: parent
-                anchors.margins: -4
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+            onClicked: (mouse) => {
+                if (mouse.button === Qt.RightButton) {
                     notif.dismiss()
                     startDismiss()
+                } else {
+                    Hyprland.dispatch("focuswindow class:(?i)" + (notif?.appName ?? ""))
                 }
             }
         }
@@ -117,10 +108,9 @@ Item {
             id: content
             anchors { top: parent.top; left: parent.left; right: parent.right }
             anchors.topMargin: 10; anchors.bottomMargin: 10
-            anchors.leftMargin: 14; anchors.rightMargin: 26
+            anchors.leftMargin: 14; anchors.rightMargin: 14
             spacing: 10
 
-            // Icon — only shown when loaded successfully
             Rectangle {
                 visible: iconProbe.status === Image.Ready
                 width: 40
@@ -137,7 +127,6 @@ Item {
                 }
             }
 
-            // Text column
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
@@ -161,7 +150,6 @@ Item {
                     textFormat: Text.StyledText
                 }
 
-                // App name fallback — only shown when no icon
                 Text {
                     Layout.fillWidth: true
                     text: notif?.appName ?? ""

@@ -1,5 +1,3 @@
-pragma ComponentBehavior: Bound
-
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -16,12 +14,13 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "quickshell:dock"
     exclusionMode: ExclusionMode.Ignore
-    implicitHeight: 72
+    implicitHeight: 120
     color: "transparent"
 
     // ── state ──────────────────────────────────────────────────────────────
     property bool dockVisible: false
     property var windowByAddress: ({})
+    property bool _fetchPending: false
 
     // drag-to-reorder
     property int  dragIndex: -1
@@ -52,6 +51,12 @@ PanelWindow {
         onTriggered: root.dockVisible = false
     }
 
+    Timer {
+        id: showTimer
+        interval: 500
+        onTriggered: if (orderedWindows.count > 0) root.dockVisible = true
+    }
+
     // ── window model ───────────────────────────────────────────────────────
     ListModel { id: orderedWindows }
 
@@ -70,29 +75,42 @@ PanelWindow {
         if (orderedWindows.count === 0) root.dockVisible = false
     }
 
-    Process {
-        id: getClients
-        command: ["hyprctl", "clients", "-j"]
-        stdout: StdioCollector {
-            id: clientsOut
-            onStreamFinished: {
-                try {
-                    var list = JSON.parse(clientsOut.text)
-                    var map = {}
-                    list.forEach(function(w) { map[w.address] = w })
-                    root.windowByAddress = map
-                    root.syncDockOrder(list)
-                } catch (e) {}
+    // StdioCollector accumulates text across runs — create a fresh Process
+    // instance per refresh so each fetch gets a clean collector.
+    Component {
+        id: clientFetcher
+        Process {
+            id: fetchProc
+            command: ["hyprctl", "clients", "-j"]
+            running: true
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        var list = JSON.parse(text)
+                        var map = {}
+                        list.forEach(function(w) { map[w.address] = w })
+                        root.windowByAddress = map
+                        root.syncDockOrder(list)
+                    } catch (e) {}
+                    root._fetchPending = false
+                    Qt.callLater(fetchProc.destroy)
+                }
             }
         }
     }
 
-    Connections {
-        target: Hyprland
-        function onRawEvent() { getClients.running = true }
+    function refreshClients() {
+        if (root._fetchPending) return
+        root._fetchPending = true
+        clientFetcher.createObject(root)
     }
 
-    Component.onCompleted: getClients.running = true
+    Connections {
+        target: Hyprland
+        function onRawEvent() { root.refreshClients() }
+    }
+
+    Component.onCompleted: refreshClients()
 
     // ── centered trigger strip ─────────────────────────────────────────────
     MouseArea {
@@ -100,8 +118,8 @@ PanelWindow {
         width: root.triggerWidth
         height: 4
         hoverEnabled: true
-        onEntered: { hideTimer.stop(); if (orderedWindows.count > 0) root.dockVisible = true }
-        onExited:  hideTimer.restart()
+        onEntered: { hideTimer.stop(); showTimer.restart() }
+        onExited:  { showTimer.stop(); hideTimer.restart() }
     }
 
     // ── dock content (slides up from bottom edge) ──────────────────────────
@@ -129,7 +147,7 @@ PanelWindow {
             // HoverHandler is reliable across all interaction scenarios (clicking
             // into other windows, moving between icons, etc.)
             HoverHandler {
-                onHoveredChanged: hovered ? hideTimer.stop() : hideTimer.restart()
+                onHoveredChanged: hovered ? (showTimer.stop(), hideTimer.stop()) : hideTimer.restart()
             }
 
             Row {
@@ -158,10 +176,42 @@ PanelWindow {
                             NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
                         }
 
+                        property bool tooltipVisible: false
+
+                        Timer {
+                            id: tooltipTimer
+                            interval: 500
+                            onTriggered: iconItem.tooltipVisible = true
+                        }
+
                         width: 44
                         height: 44
-                        z: isDragging ? 10 : 0
+                        z: isDragging ? 10 : 1
                         transform: Translate { x: iconItem.dragOffset }
+
+                        Rectangle {
+                            visible: iconItem.tooltipVisible && iconItem.win !== undefined
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.top
+                            anchors.bottomMargin: 10
+                            width: Math.min(tooltipLabel.implicitWidth + 16, 220)
+                            height: tooltipLabel.implicitHeight + 10
+                            radius: 8
+                            color: Colors.surface
+                            border.width: 1
+                            border.color: Colors.subtle
+                            z: 100
+
+                            Text {
+                                id: tooltipLabel
+                                anchors.centerIn: parent
+                                width: Math.min(implicitWidth, 204)
+                                text: iconItem.win?.title ?? ""
+                                color: Colors.fg
+                                font { family: Colors.font; pixelSize: 12 }
+                                elide: Text.ElideRight
+                            }
+                        }
 
                         Image {
                             anchors.centerIn: parent
@@ -187,8 +237,8 @@ PanelWindow {
 
                             property real pressSceneX: 0
 
-                            onEntered: iconItem.iconScale = 1.25
-                            onExited:  iconItem.iconScale = 1.0
+                            onEntered: { iconItem.iconScale = 1.25; tooltipTimer.restart() }
+                            onExited:  { iconItem.iconScale = 1.0; tooltipTimer.stop(); iconItem.tooltipVisible = false }
 
                             onPressed: (mouse) => {
                                 if (mouse.button === Qt.RightButton) {

@@ -10,6 +10,7 @@ Scope {
 
     property int _uidCounter: 0
     property var _notifRefs: ({})
+    property var _mprisRefs: ({})
 
     ListModel {
         id: activeItems
@@ -33,6 +34,7 @@ Scope {
             }
         }
         delete root._notifRefs[uid]
+        delete root._mprisRefs[uid]
     }
 
     PanelWindow {
@@ -57,14 +59,14 @@ Scope {
                         if (modelData.trackTitle.length > 0) {
                             Qt.callLater(function() {
                                 var uid = root._uidCounter++
-                                activeItems.insert(0, {
-                                    uid: uid,
-                                    type: "mpris",
+                                root._mprisRefs[uid] = {
                                     title: modelData.trackTitle,
                                     artist: modelData.trackArtist,
                                     album: modelData.trackAlbum,
-                                    artUrl: modelData.trackArtUrl
-                                })
+                                    artUrl: modelData.trackArtUrl,
+                                    appId: modelData.desktopEntry || modelData.identity || ""
+                                }
+                                activeItems.insert(0, { uid: uid, type: "mpris" })
                             })
                         }
                     })
@@ -79,6 +81,7 @@ Scope {
             anchors.topMargin: 30
             anchors.rightMargin: 30
             spacing: 8
+            clip: true
 
             Repeater {
                 model: activeItems
@@ -90,15 +93,18 @@ Scope {
                     onLoaded: {
                         var uid = model.uid
                         if (model.type === "mpris") {
-                            item.title = model.title
-                            item.artist = model.artist
-                            item.album = model.album
-                            item.artUrl = model.artUrl
+                            var d = root._mprisRefs[uid]
+                            item.title = d.title
+                            item.artist = d.artist
+                            item.album = d.album
+                            item.artUrl = d.artUrl
+                            item.appId = d.appId
                         } else {
                             item.notif = root._notifRefs[uid]
                             item.startAutoTimer()
                         }
                         item.dismissed.connect(() => root.removeItem(uid))
+                        item.show()
                     }
                 }
             }
