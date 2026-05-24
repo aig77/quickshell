@@ -9,11 +9,10 @@ import "./components/overview/services/"
 import "./components/overview/common/"
 
 ShellRoot {
-    // Bar {}
-    // Dock {}
     Launcher {}
     Lockscreen {}
     Overview {}
     NotificationStack {}
     WorkspacePill {}
+    ControlCenter {}
 }

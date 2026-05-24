@@ -5,11 +5,13 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import "./"
+import "./controlcenter/"
 
 PanelWindow {
   id: root
 
   property bool showing: false
+  property bool forceShow: false
   property int fontSize: 14
 
   anchors.bottom: true
@@ -20,7 +22,7 @@ PanelWindow {
   exclusionMode: ExclusionMode.Ignore
   WlrLayershell.layer: WlrLayer.Overlay
   WlrLayershell.namespace: "quickshell:workspacepill"
-  mask: Region { item: root.showing ? pill : null }
+  mask: Region { item: (root.showing || root.forceShow) ? pill : null }
 
   Timer {
     id: hideTimer
@@ -43,27 +45,17 @@ PanelWindow {
     anchors.horizontalCenter: parent.horizontalCenter
     spacing: 4
 
-    opacity: root.showing ? 1.0 : 0.0
+    opacity: (root.showing || root.forceShow) ? 1.0 : 0.0
     Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
     transform: Translate {
-      y: root.showing ? 0 : 16
+      y: (root.showing || root.forceShow) ? 0 : 16
       Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
     }
 
-    // Clock (bare text, no pill)
-    Text {
-      id: clock
-      anchors.horizontalCenter: parent.horizontalCenter
-      color: Colors.muted
-      font { family: Colors.font; pixelSize: root.fontSize }
-      text: Qt.formatDateTime(new Date(), "HH:mm")
-      Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: clock.text = Qt.formatDateTime(new Date(), "HH:mm")
-      }
+    Connections {
+      target: CCState
+      function onOpenChanged() { root.forceShow = CCState.open }
     }
 
     // Workspace pill

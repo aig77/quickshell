@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Services.Notifications
 import Quickshell.Services.Mpris
 import "../"
+import "../controlcenter/"
 
 Scope {
     id: root
@@ -23,6 +24,7 @@ Scope {
             var uid = root._uidCounter++
             root._notifRefs[uid] = notif
             activeItems.insert(0, { uid: uid, type: "notif" })
+            CCNotifModel.addNotif(uid, notif)
         }
     }
 

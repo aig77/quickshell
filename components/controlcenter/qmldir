@@ -1,0 +1,3 @@
+singleton CCState 1.0 CCState.qml
+singleton CCNotifModel 1.0 CCNotifModel.qml
+StatusBar 1.0 StatusBar.qml
