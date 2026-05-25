@@ -17,29 +17,44 @@ Rectangle {
     signal adjustValue(int delta)
 
     function actionCmd(index) {
-        const cmds = [
-            ["shutdown", "now"],
-            ["reboot"],
-            ["systemctl", "suspend"],
-            ["hyprlock"]
-        ]
-        return cmds[index] ?? []
+        const cmds = [["shutdown", "now"], ["reboot"], ["systemctl", "suspend"], ["hyprlock"]];
+        return cmds[index] ?? [];
     }
 
     implicitHeight: Math.round(em * 4.5)
 
-    HoverHandler { id: zoneHover }
+    HoverHandler {
+        id: zoneHover
+    }
 
-    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
-         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
-         : "transparent"
-    Behavior on color { ColorAnimation { duration: 120 } }
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08) : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04) : "transparent"
+    Behavior on color {
+        ColorAnimation {
+            duration: 120
+        }
+    }
 
     readonly property var _actions: [
-        { icon: "⏻",  label: "Power",   color: Colors.red    },
-        { icon: "󰜉",  label: "Restart", color: Colors.blue   },
-        { icon: "󰒲",  label: "Sleep",   color: Colors.purple },
-        { icon: "󰌾",  label: "Lock",    color: Colors.green  }
+        {
+            icon: "⏻",
+            label: "Power",
+            color: Colors.red
+        },
+        {
+            icon: "",
+            label: "Restart",
+            color: Colors.blue
+        },
+        {
+            icon: "󰒲",
+            label: "Sleep",
+            color: Colors.purple
+        },
+        {
+            icon: "󰌾",
+            label: "Lock",
+            color: Colors.green
+        }
     ]
 
     Item {
@@ -56,28 +71,24 @@ Rectangle {
                     required property var modelData
                     required property int index
 
-                    readonly property bool isFocused: root.inZoneMode
-                        && root.currentItemIndex === index
-                    readonly property bool isConfirming: root.confirmMode
-                        && root.currentItemIndex === index
+                    readonly property bool isFocused: root.inZoneMode && root.currentItemIndex === index
+                    readonly property bool isConfirming: root.confirmMode && root.currentItemIndex === index
 
                     readonly property real btnSize: Math.round(root.em * 2.8)
                     width: btnSize
                     height: btnSize
                     radius: btnSize / 2
 
-                    color: isConfirming
-                        ? Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.25)
-                        : isFocused || hovered
-                            ? Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.2)
-                            : Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.1)
+                    color: isConfirming ? Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.25) : isFocused || hovered ? Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.2) : Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.1)
 
                     border.width: isFocused || isConfirming ? 2 : 1
-                    border.color: isFocused || isConfirming
-                        ? modelData.color
-                        : Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.45)
+                    border.color: isFocused || isConfirming ? modelData.color : Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.45)
 
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 120
+                        }
+                    }
 
                     property bool hovered: false
 
@@ -85,7 +96,10 @@ Rectangle {
                         anchors.centerIn: parent
                         text: btn.modelData.icon
                         color: btn.modelData.color
-                        font { family: Colors.font; pixelSize: Math.round(root.em * 1.2) }
+                        font {
+                            family: Colors.font
+                            pixelSize: Math.round(root.em * 1.2)
+                        }
                     }
 
                     MouseArea {

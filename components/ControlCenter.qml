@@ -172,7 +172,7 @@ Scope {
         WlrLayershell.layer: WlrLayer.Overlay
         // Exclusive in confirm mode: gets keyboard focus so key nav works,
         // and pointer events route here naturally (no exclusive grab on win).
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         WlrLayershell.namespace: "quickshell:controlcenter:powerconfirm"
 
         readonly property real em: screen ? Math.round(screen.height * 0.018) : 16
@@ -336,7 +336,7 @@ Scope {
         visible: root.open
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: root.navMode === "confirm" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         WlrLayershell.namespace: "quickshell:controlcenter"
 
         readonly property real em: screen ? Math.round(screen.height * 0.018) : 16
@@ -602,13 +602,20 @@ Scope {
             function executePendingAction() {
                 if (root.pendingPowerAction.length > 0) {
                     const cmd = root.pendingPowerAction
-                    root.open = false
-                    const proc = Qt.createQmlObject(
-                        'import Quickshell.Io; Process {}',
-                        keyArea
-                    )
-                    proc.command = cmd
-                    proc.running = true
+                    const isLock = cmd.length === 1 && cmd[0] === "hyprlock"
+                    if (isLock) {
+                        // Start hyprlock first so ext-session-lock-v1 covers the screen,
+                        // then close the CC in the background behind the lock surface.
+                        const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', keyArea)
+                        proc.command = cmd
+                        proc.running = true
+                        Qt.callLater(() => { root.open = false })
+                    } else {
+                        root.open = false
+                        const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', keyArea)
+                        proc.command = cmd
+                        proc.running = true
+                    }
                 }
             }
 
