@@ -144,7 +144,9 @@ Item {
                                 onClicked: {
                                     if (root.draggingTargetWorkspace === -1) {
                                         GlobalStates.overviewOpen = false
-                                        Hyprland.dispatch(`workspace ${workspaceValue}`)
+                                        const p = Qt.createQmlObject('import Quickshell.Io; Process {}', workspaceArea)
+                                        p.command = ["hyprctl", "dispatch", `hl.dsp.focus({ workspace = ${workspaceValue} })`]
+                                        p.running = true
                                     }
                                 }
                             }
@@ -277,7 +279,9 @@ Item {
                             window.Drag.active = false
                             root.draggingFromWorkspace = -1
                             if (targetWorkspace !== -1 && targetWorkspace !== windowData?.workspace.id) {
-                                Hyprland.dispatch(`movetoworkspacesilent ${targetWorkspace}, address:${window.windowData?.address}`)
+                                const p = Qt.createQmlObject('import Quickshell.Io; Process {}', dragArea)
+                                p.command = ["hyprctl", "dispatch", `hl.dsp.window.move({ workspace = ${targetWorkspace}, address = ${window.windowData?.address}, silent = true })`]
+                                p.running = true
                                 updateWindowPosition.restart()
                             }
                             else {
@@ -290,10 +294,14 @@ Item {
 
                             if (event.button === Qt.LeftButton) {
                                 GlobalStates.overviewOpen = false
-                                Hyprland.dispatch(`focuswindow address:${windowData.address}`)
+                                const p = Qt.createQmlObject('import Quickshell.Io; Process {}', dragArea)
+                                p.command = ["hyprctl", "dispatch", `hl.dsp.window.focus(${windowData.address})`]
+                                p.running = true
                                 event.accepted = true
                             } else if (event.button === Qt.MiddleButton) {
-                                Hyprland.dispatch(`closewindow address:${windowData.address}`)
+                                const p = Qt.createQmlObject('import Quickshell.Io; Process {}', dragArea)
+                                p.command = ["hyprctl", "dispatch", `hl.dsp.window.close(${windowData.address})`]
+                                p.running = true
                                 event.accepted = true
                             }
                         }

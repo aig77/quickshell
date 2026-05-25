@@ -287,7 +287,7 @@ Scope {
         visible: root.open
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        WlrLayershell.keyboardFocus: root.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         WlrLayershell.namespace: "quickshell:controlcenter"
 
         readonly property real em: screen ? Math.round(screen.height * 0.018) : 16

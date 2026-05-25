@@ -66,6 +66,8 @@ Scope {
                     if (!grab.canBeActive)
                         return;
                     grab.active = GlobalStates.overviewOpen;
+                    if (GlobalStates.overviewOpen)
+                        keyHandler.forceActiveFocus();
                 }
             }
 
@@ -140,7 +142,9 @@ Scope {
                     }
 
                     if (targetId !== null) {
-                        Hyprland.dispatch("workspace " + targetId);
+                        const p = Qt.createQmlObject('import Quickshell.Io; Process {}', keyHandler)
+                        p.command = ["hyprctl", "dispatch", `hl.dsp.focus({ workspace = ${targetId} })`]
+                        p.running = true
                         event.accepted = true;
                     }
                 }
