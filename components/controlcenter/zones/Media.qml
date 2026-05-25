@@ -29,7 +29,7 @@ Rectangle {
         ? Mpris.players.values[0] : null
     readonly property bool _hasPlayer: _player !== null
 
-    implicitHeight: Math.round(em * 9)
+    implicitHeight: Math.round(em * 9.8)
     color: "transparent"
     border.width: root.zoneActive ? 2 : 0
     border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
@@ -71,35 +71,6 @@ Rectangle {
         }
     }
 
-    // Gradient color per bar index
-    function barColor(idx) {
-        const t = idx / (root.cavaBarCount - 1)
-        if (t < 0.33) {
-            return Qt.rgba(
-                Colors.green.r + (Colors.yellow.r - Colors.green.r) * (t / 0.33),
-                Colors.green.g + (Colors.yellow.g - Colors.green.g) * (t / 0.33),
-                Colors.green.b + (Colors.yellow.b - Colors.green.b) * (t / 0.33),
-                1
-            )
-        } else if (t < 0.66) {
-            const s = (t - 0.33) / 0.33
-            return Qt.rgba(
-                Colors.yellow.r + (Colors.red.r - Colors.yellow.r) * s,
-                Colors.yellow.g + (Colors.red.g - Colors.yellow.g) * s,
-                Colors.yellow.b + (Colors.red.b - Colors.yellow.b) * s,
-                1
-            )
-        } else {
-            const s = (t - 0.66) / 0.34
-            return Qt.rgba(
-                Colors.red.r + (Colors.purple.r - Colors.red.r) * s,
-                Colors.red.g + (Colors.purple.g - Colors.red.g) * s,
-                Colors.red.b + (Colors.purple.b - Colors.red.b) * s,
-                1
-            )
-        }
-    }
-
     // No player state
     Text {
         anchors.centerIn: parent
@@ -117,6 +88,7 @@ Rectangle {
             margins: Math.round(root.em * 0.8)
         }
         spacing: Math.round(root.em * 0.5)
+        bottomPadding: Math.round(root.em * 0.8)
         visible: root._hasPlayer
 
         // Track info row
@@ -225,22 +197,38 @@ Rectangle {
 
             Repeater {
                 model: root.cavaBarCount
-                delegate: Rectangle {
+                delegate: Item {
                     required property int index
                     readonly property real barH: root.cavaBars[index] ?? 0.05
+                    readonly property real maxH: Math.round(root.em * 2)
+                    readonly property real fillH: Math.max(Math.round(root.em * 0.15), Math.round(maxH * barH))
 
                     width: Math.round(root.em * 0.55)
-                    height: Math.round(root.em * 2)
-                    color: "transparent"
+                    height: maxH
 
-                    Rectangle {
+                    // Clip Item grows from the bottom to reveal the vertical gradient
+                    Item {
                         anchors.bottom: parent.bottom
-                        anchors.horizontalCenter: parent.horizontalCenter
                         width: parent.width
-                        height: Math.max(Math.round(root.em * 0.15), Math.round(parent.height * barH))
-                        radius: width / 2
-                        color: root.barColor(index)
+                        height: fillH
+                        clip: true
+
                         Behavior on height { NumberAnimation { duration: 80 } }
+
+                        // Full-height gradient anchored to this clip Item's bottom
+                        // so low bars show the green (bottom) end, tall bars reveal purple (top)
+                        Rectangle {
+                            anchors.bottom: parent.bottom
+                            width: parent.width
+                            height: parent.parent.maxH
+                            gradient: Gradient {
+                                orientation: Gradient.Vertical
+                                GradientStop { position: 0.0;  color: Colors.purple }
+                                GradientStop { position: 0.35; color: Colors.red    }
+                                GradientStop { position: 0.65; color: Colors.yellow }
+                                GradientStop { position: 1.0;  color: Colors.green  }
+                            }
+                        }
                     }
                 }
             }

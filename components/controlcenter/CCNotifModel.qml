@@ -11,7 +11,10 @@ QtObject {
             uid: uid,
             summary: notif.summary ?? "",
             appName: notif.appName ?? "",
-            body: notif.body ?? ""
+            appIcon: notif.appIcon ?? "",
+            body: notif.body ?? "",
+            urgency: notif.urgency ?? 1,
+            time: Qt.formatTime(new Date(), "HH:mm")
         })
     }
 

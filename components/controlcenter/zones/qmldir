@@ -3,8 +3,7 @@ Weather 1.0 Weather.qml
 ClockWeather 1.0 ClockWeather.qml
 Calendar 1.0 Calendar.qml
 Notifications 1.0 Notifications.qml
-Sliders 1.0 Sliders.qml
+Controls 1.0 Controls.qml
 Metrics 1.0 Metrics.qml
-Toggles 1.0 Toggles.qml
 Media 1.0 Media.qml
 Power 1.0 Power.qml

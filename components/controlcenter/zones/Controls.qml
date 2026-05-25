@@ -11,7 +11,7 @@ Rectangle {
     property bool zoneActive: false
     property bool inZoneMode: false
     property int currentItemIndex: 0
-    // 0=brightness, 1=volume, 2=blue light, 3=idle inhibit
+    // 0=volume, 1=brightness, 2=blue light, 3=idle inhibit
     property int selectableCount: 4
 
     signal activated(int index)
@@ -103,7 +103,6 @@ Rectangle {
         id: volSetProc
         property string _pct: "50%"
         command: ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", volSetProc._pct]
-        onExited: volGetProc.running = true
     }
 
     Process {
@@ -138,13 +137,13 @@ Rectangle {
         volGetProc.running = true;
     }
 
-    // Keyboard adjust from ControlCenter (indices 0=brightness, 1=volume)
+    // Keyboard adjust from ControlCenter (indices 0=volume, 1=brightness)
     function keyAdjust(index, delta) {
         const step = 0.05;
         if (index === 0)
-            setBrightness(root.brightnessRatio + delta * step);
-        else if (index === 1)
             setVolume(root.volumeRatio + delta * step);
+        else if (index === 1)
+            setBrightness(root.brightnessRatio + delta * step);
     }
 
     // Activate toggle (indices 2=blue light, 3=idle inhibit)
@@ -248,11 +247,13 @@ Rectangle {
                     anchors.margins: -Math.round(root.em * 0.5)
                     enabled: sliderRow.enabled_
                     onPositionChanged: mouse => {
-                        const ratio = Math.max(0, Math.min(1, mouseX / trackArea.width));
+                        const margin = Math.round(root.em * 0.5);
+                        const ratio = Math.max(0, Math.min(1, (mouseX - margin) / trackArea.width));
                         sliderRow.dragged(ratio);
                     }
                     onClicked: mouse => {
-                        const ratio = Math.max(0, Math.min(1, mouseX / trackArea.width));
+                        const margin = Math.round(root.em * 0.5);
+                        const ratio = Math.max(0, Math.min(1, (mouseX - margin) / trackArea.width));
                         sliderRow.dragged(ratio);
                     }
                 }
@@ -276,22 +277,25 @@ Rectangle {
     // --- Toggle circle button component ---
     component CircleToggle: Rectangle {
         id: circleBtn
-        property string icon: ""
+        property string iconOff: ""
+        property string iconOn: ""
         property bool on_: false
         property bool focused: false
+        property color offColor: Colors.muted
         property color onColor: Colors.orange
-        property real iconOffsetX: 0
         signal tapped
+
+        readonly property color _activeColor: on_ ? onColor : offColor
 
         readonly property real btnSize: Math.round(root.em * 2.0)
         width: btnSize
         height: btnSize
         radius: btnSize / 2
 
-        color: on_ ? Qt.rgba(onColor.r, onColor.g, onColor.b, 0.2) : Qt.rgba(onColor.r, onColor.g, onColor.b, 0.08)
+        color: on_ ? Qt.rgba(onColor.r, onColor.g, onColor.b, 0.2) : Qt.rgba(offColor.r, offColor.g, offColor.b, 0.08)
 
         border.width: focused ? 2 : 1
-        border.color: focused ? Colors.green : Qt.rgba(onColor.r, onColor.g, onColor.b, 0.5)
+        border.color: focused ? Colors.green : Qt.rgba(_activeColor.r, _activeColor.g, _activeColor.b, 0.5)
 
         Behavior on color {
             ColorAnimation {
@@ -301,9 +305,8 @@ Rectangle {
 
         Text {
             anchors.centerIn: parent
-            anchors.horizontalCenterOffset: circleBtn.iconOffsetX
-            text: circleBtn.icon
-            color: circleBtn.on_ ? circleBtn.onColor : Qt.rgba(circleBtn.onColor.r, circleBtn.onColor.g, circleBtn.onColor.b, 0.55)
+            text: circleBtn.on_ ? circleBtn.iconOn : circleBtn.iconOff
+            color: circleBtn.on_ ? circleBtn.onColor : Qt.rgba(circleBtn.offColor.r, circleBtn.offColor.g, circleBtn.offColor.b, 0.7)
             font {
                 family: Colors.font
                 pixelSize: Math.round(root.em * 1.0)
@@ -327,19 +330,22 @@ Rectangle {
         spacing: Math.round(root.em * 0.55)
 
         CircleToggle {
-            icon: " "
+            iconOff: ""
+            iconOn: ""
             on_: root.blueLightOn
+            offColor: Colors.orange
+            onColor: Colors.purple
             focused: root.inZoneMode && root.currentItemIndex === 2
-            onColor: Colors.orange
-            iconOffsetX: Math.round(root.em * 0.095)
             onTapped: root.toggle(2)
         }
 
         CircleToggle {
-            icon: "󰌵"
+            iconOff: "󰈉"
+            iconOn: "󰈈"
             on_: root.idleInhibitOn
-            focused: root.inZoneMode && root.currentItemIndex === 3
+            offColor: Colors.blue
             onColor: Colors.yellow
+            focused: root.inZoneMode && root.currentItemIndex === 3
             onTapped: root.toggle(3)
         }
     }
@@ -359,7 +365,7 @@ Rectangle {
             iconOn: "󰕾"
             toggled: !root.volumeMuted
             value: root.volumeRatio
-            focused: root.inZoneMode && root.currentItemIndex === 1
+            focused: root.inZoneMode && root.currentItemIndex === 0
             enabled_: true
             onDragged: v => root.setVolume(v)
             onIconTapped: muteToggleProc.running = true
@@ -371,7 +377,7 @@ Rectangle {
             iconOn: "󰃠"
             toggled: false
             value: root.brightnessRatio
-            focused: root.inZoneMode && root.currentItemIndex === 0
+            focused: root.inZoneMode && root.currentItemIndex === 1
             enabled_: root.brightnessAvailable
             onDragged: v => root.setBrightness(v)
             onIconTapped: {}

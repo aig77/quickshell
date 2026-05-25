@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import "./"
 import "./controlcenter/"
+import "./overview/common/"
 
 PanelWindow {
   id: root
@@ -80,7 +81,7 @@ PanelWindow {
         spacing: 0
 
         Repeater {
-          model: 10
+          model: Config.options.overview.columns * Config.options.overview.rows
 
           Item {
             property var ws: Hyprland.workspaces.values.find(w => w.id === index + 1)
