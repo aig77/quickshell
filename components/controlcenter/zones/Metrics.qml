@@ -15,9 +15,12 @@ Rectangle {
     signal adjustValue(int delta)
 
     implicitHeight: Math.round(em * 5)
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     // --- CPU ---
     property real cpuPercent: 0
@@ -87,7 +90,7 @@ Rectangle {
     Process {
         id: gpuProc
         command: root.gpuType === "amd"
-            ? ["sh", "-c", "cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | head -1"]
+            ? ["sh", "-c", "cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | sort -rn | head -1"]
             : root.gpuType === "nvidia"
                 ? ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"]
                 : ["sh", "-c", "echo 0"]
