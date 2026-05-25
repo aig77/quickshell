@@ -124,12 +124,15 @@ Rectangle {
 
     Process {
         id: blueLightProc
-        command: ["sh", "-c", "hyprshade toggle blue-light-filter"]
+        property bool _on: false
+        command: _on
+            ? ["systemctl", "--user", "start", "wlsunset"]
+            : ["systemctl", "--user", "stop", "wlsunset"]
     }
 
     Process {
         id: idleProc
-        command: ["wayland-idle-inhibitor"]
+        command: ["systemd-inhibit", "--what=idle", "--mode=block", "--why=Manual", "sleep", "infinity"]
     }
 
     Component.onCompleted: {
@@ -150,6 +153,7 @@ Rectangle {
     function toggle(index) {
         if (index === 2) {
             root.blueLightOn = !root.blueLightOn;
+            blueLightProc._on = root.blueLightOn;
             blueLightProc.running = true;
         } else if (index === 3) {
             root.idleInhibitOn = !root.idleInhibitOn;
