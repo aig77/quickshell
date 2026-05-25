@@ -28,9 +28,12 @@ Rectangle {
 
     implicitHeight: Math.round(em * 4.5)
 
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     readonly property var _actions: [
         { icon: "⏻",  label: "Power",   color: Colors.red    },
@@ -70,11 +73,9 @@ Rectangle {
                             : Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.1)
 
                     border.width: isFocused || isConfirming ? 2 : 1
-                    border.color: isFocused
-                        ? Colors.green
-                        : isConfirming
-                            ? modelData.color
-                            : Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.45)
+                    border.color: isFocused || isConfirming
+                        ? modelData.color
+                        : Qt.rgba(modelData.color.r, modelData.color.g, modelData.color.b, 0.45)
 
                     Behavior on color { ColorAnimation { duration: 120 } }
 
@@ -90,6 +91,7 @@ Rectangle {
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         onEntered: btn.hovered = true
                         onExited: btn.hovered = false
                         onClicked: root.activated(btn.index)

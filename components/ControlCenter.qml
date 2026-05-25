@@ -17,9 +17,10 @@ Scope {
     property string navMode: "view"  // "view" | "panel" | "zone" | "confirm"
     property int focusedZone: 0        // 0-7
     property int zoneItemIndex: 0
-    property int row0Column: 0         // 0=clock, 1=weather (sticky)
-    property int row1Column: 0         // 0=calendar, 1=notifications (sticky)
+    property int row0Column: 1         // 0=clock, 1=weather (sticky; clock is not keyboard-navigable so always start at weather)
+    property int row1Column: 0         // 0=notifications, 1=calendar (sticky)
     property var pendingPowerAction: []
+    property int _confirmFocus: 0  // 0=Confirm, 1=Cancel
 
     // Notification whose body is shown in the detail popup (keyboard focus or mouse hover)
     readonly property var _popupNotif: {
@@ -44,26 +45,16 @@ Scope {
         { icon: "⏻",  name: "Power",             }
     ]
 
-    // Row order matches visual layout: Clock/Weather | Metrics | Calendar/Notifications | Controls | Media | Power
-    readonly property var _rows: [[0, 1], [5], [2, 3], [4], [6], [7]]
+    // Row order matches visual layout: Clock/Weather | Controls | Notifications/Calendar | Media | Metrics | Power
+    readonly property var _rows: [[0, 1], [4], [3, 2], [6], [5], [7]]
 
     function nextZone(current, dir) {
         let ri = _rows.findIndex(r => r.includes(current))
-        let zone
-        let attempts = 0
-        do {
-            ri = (ri + dir + _rows.length) % _rows.length
-            const row = _rows[ri]
-            if (row.length === 1) {
-                zone = row[0]
-            } else if (ri === 0) {
-                zone = row[root.row0Column]
-            } else {
-                zone = row[root.row1Column]
-            }
-            attempts++
-        } while ([0, 1, 5].includes(zone) && attempts < _rows.length)
-        return zone
+        ri = (ri + dir + _rows.length) % _rows.length
+        const row = _rows[ri]
+        if (row.length === 1) return row[0]
+        if (ri === 0) return row[root.row0Column]
+        return row[root.row1Column]
     }
 
     function currentItemName(zone, index) {
@@ -80,9 +71,10 @@ Scope {
                 const s = notif.appName
                 return s.length > 22 ? s.substring(0, 19) + "..." : s
             }
+            case 1: return "Refresh"
             case 4: return (["Volume", "Brightness", "Blue Light", "Idle Inhibit"])[index] ?? ""
             case 6: return (["Previous", "Play/Pause", "Next"])[index] ?? ""
-            case 7: return (["Power", "Restart", "Sleep", "Lock"])[index] ?? ""
+            case 7: return (["Shutdown", "Restart", "Sleep", "Lock"])[index] ?? ""
             default: return ""
         }
     }
@@ -100,7 +92,7 @@ Scope {
     // --- Notification detail popup: appears to the right of the panel ---
     PanelWindow {
         id: popupWin
-        anchors.left: true
+        anchors.right: true
         anchors.top: true
         visible: root.open && root._popupNotif !== null
         exclusionMode: ExclusionMode.Ignore
@@ -111,8 +103,8 @@ Scope {
         readonly property real em: screen ? Math.round(screen.height * 0.018) : 16
         readonly property real _panelW: screen ? Math.min(Math.round(screen.width * 0.4), 600) : 480
 
-        // Height of everything below the notification zone (sliders + media + power + 3 separators)
-        readonly property real _belowNotifH: Math.round(win.em * 6) + Math.round(win.em * 9.8) + Math.round(win.em * 4.5) + 3
+        // Height of everything below the notification zone (media + metrics + power + 3 separators)
+        readonly property real _belowNotifH: Math.round(win.em * 9.8) + Math.round(win.em * 5) + Math.round(win.em * 4.5) + 3
         readonly property real _notifZoneH: z2.implicitHeight
         readonly property real _notifZoneTopY: screen
             ? Math.round((screen.height - panel.implicitHeight) / 2)
@@ -122,7 +114,7 @@ Scope {
         implicitWidth: Math.round(em * 16)
         implicitHeight: popupCard.implicitHeight
 
-        WlrLayershell.margins.left: screen
+        WlrLayershell.margins.right: screen
             ? Math.round(screen.width / 2 + _panelW / 2) + Math.round(em * 0.5)
             : 400
         WlrLayershell.margins.top: Math.round(_notifZoneTopY + _notifZoneH / 2 - implicitHeight / 2)
@@ -175,9 +167,12 @@ Scope {
         anchors.left: true
         anchors.top: true
         visible: root.open && root.navMode === "confirm"
+        color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        // Exclusive in confirm mode: gets keyboard focus so key nav works,
+        // and pointer events route here naturally (no exclusive grab on win).
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         WlrLayershell.namespace: "quickshell:controlcenter:powerconfirm"
 
         readonly property real em: screen ? Math.round(screen.height * 0.018) : 16
@@ -185,69 +180,123 @@ Scope {
         readonly property var _actionColors: [Colors.red, Colors.blue, Colors.purple, Colors.green]
         readonly property real _zoneH: Math.round(win.em * 4.5)
 
-        // Top of the power zone
         readonly property real _powerZoneTopY: screen
             ? Math.round((screen.height - panel.implicitHeight) / 2)
               + panel.implicitHeight - _zoneH
             : 300
 
-        implicitWidth: Math.round(em * 7)
-        implicitHeight: _zoneH
+        implicitWidth: Math.round(em * 8)
+        implicitHeight: pcCol.implicitHeight
 
         WlrLayershell.margins.left: screen
             ? Math.round(screen.width / 2 + _panelW / 2) + Math.round(em * 0.5)
             : 400
-        WlrLayershell.margins.top: Math.round(_powerZoneTopY)
+        WlrLayershell.margins.top: Math.round(_powerZoneTopY + _zoneH / 2 - implicitHeight / 2)
 
-        Rectangle {
-            id: pcCard
+        Item {
             anchors.fill: parent
-            color: Colors.bg
-            border.width: 1
-            border.color: Colors.subtle
+            focus: true
+
+            Keys.onPressed: event => {
+                switch (event.key) {
+                case Qt.Key_J:
+                case Qt.Key_K:
+                    root._confirmFocus = root._confirmFocus === 0 ? 1 : 0
+                    event.accepted = true
+                    break
+                case Qt.Key_Return:
+                case Qt.Key_Enter:
+                    if (root._confirmFocus === 0)
+                        keyArea.executePendingAction()
+                    else {
+                        root.navMode = "zone"
+                        root.pendingPowerAction = []
+                    }
+                    event.accepted = true
+                    break
+                case Qt.Key_Escape:
+                    root.navMode = "zone"
+                    root.pendingPowerAction = []
+                    event.accepted = true
+                    break
+                }
+            }
+
+            Rectangle {
+                id: pcCard
+                anchors.fill: parent
+                color: Colors.bg
+                border.width: 1
+                border.color: Colors.subtle
 
             Column {
                 id: pcCol
-                anchors.centerIn: parent
-                spacing: Math.round(powerConfirmWin.em * 0.7)
+                width: parent.width
 
-                Text {
-                    text: "Confirm"
-                    color: powerConfirmWin._actionColors[root.zoneItemIndex] ?? Colors.fg
-                    font { family: Colors.font; pixelSize: Math.round(powerConfirmWin.em * 0.85); bold: true }
-                    horizontalAlignment: Text.AlignHCenter
+                // Confirm
+                Rectangle {
+                    id: confirmBtn
+                    width: parent.width
+                    height: Math.round(powerConfirmWin.em * 2.2)
+                    property bool hovered: false
+
+                    readonly property color _ac: powerConfirmWin._actionColors[root.zoneItemIndex] ?? Colors.fg
+                    readonly property bool _active: root._confirmFocus === 0 || hovered
+
+                    color: _active ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Confirm"
+                        color: confirmBtn._ac
+                        font { family: Colors.font; pixelSize: Math.round(powerConfirmWin.em * 0.85); bold: confirmBtn._active }
+                    }
 
                     MouseArea {
                         anchors.fill: parent
+                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (root.pendingPowerAction.length > 0) {
-                                const cmd = root.pendingPowerAction
-                                root.open = false
-                                const proc = Qt.createQmlObject(
-                                    'import Quickshell.Io; Process {}', powerConfirmWin)
-                                proc.command = cmd
-                                proc.running = true
-                            }
-                        }
+                        onEntered: confirmBtn.hovered = true
+                        onExited: confirmBtn.hovered = false
+                        onClicked: keyArea.executePendingAction()
                     }
                 }
 
-                Text {
-                    text: "Cancel"
-                    color: Colors.muted
-                    font { family: Colors.font; pixelSize: Math.round(powerConfirmWin.em * 0.85) }
-                    horizontalAlignment: Text.AlignHCenter
+                Rectangle { width: parent.width; height: 1; color: Colors.subtle }
+
+                // Cancel
+                Rectangle {
+                    id: cancelBtn
+                    width: parent.width
+                    height: Math.round(powerConfirmWin.em * 2.2)
+                    property bool hovered: false
+
+                    readonly property bool _active: root._confirmFocus === 1 || hovered
+
+                    color: _active ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Cancel"
+                        color: cancelBtn._active ? Colors.fg : Colors.muted
+                        font { family: Colors.font; pixelSize: Math.round(powerConfirmWin.em * 0.85); bold: cancelBtn._active }
+                    }
 
                     MouseArea {
                         anchors.fill: parent
+                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
+                        onEntered: cancelBtn.hovered = true
+                        onExited: cancelBtn.hovered = false
                         onClicked: {
                             root.navMode = "zone"
                             root.pendingPowerAction = []
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -287,7 +336,7 @@ Scope {
         visible: root.open
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: root.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: root.navMode === "confirm" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive
         WlrLayershell.namespace: "quickshell:controlcenter"
 
         readonly property real em: screen ? Math.round(screen.height * 0.018) : 16
@@ -328,8 +377,8 @@ Scope {
                     case Qt.Key_Return:
                     case Qt.Key_Enter:
                         root.navMode = "panel"
-                        root.focusedZone = 2
-                        root.row1Column = 0
+                        root.focusedZone = 0
+                        root.row0Column = 0
                         event.accepted = true
                         break
                     }
@@ -341,7 +390,9 @@ Scope {
                         break
                     case Qt.Key_Return:
                     case Qt.Key_Enter:
-                        if (zoneSelectableCount(root.focusedZone) > 0) {
+                        if (root.focusedZone === 1) {
+                            z1.refresh()
+                        } else if (zoneSelectableCount(root.focusedZone) > 0) {
                             root.navMode = "zone"
                             root.zoneItemIndex = 0
                         }
@@ -350,26 +401,36 @@ Scope {
                     case Qt.Key_J:
                         root.focusedZone = root.nextZone(root.focusedZone, 1)
                         if (root.focusedZone === 2 || root.focusedZone === 3)
-                            root.row1Column = root.focusedZone - 2
+                            root.row1Column = root.focusedZone === 3 ? 0 : 1
+                        if (root.focusedZone === 0 || root.focusedZone === 1)
+                            root.row0Column = root.focusedZone
                         event.accepted = true
                         break
                     case Qt.Key_K:
                         root.focusedZone = root.nextZone(root.focusedZone, -1)
                         if (root.focusedZone === 2 || root.focusedZone === 3)
-                            root.row1Column = root.focusedZone - 2
+                            root.row1Column = root.focusedZone === 3 ? 0 : 1
+                        if (root.focusedZone === 0 || root.focusedZone === 1)
+                            root.row0Column = root.focusedZone
                         event.accepted = true
                         break
                     case Qt.Key_H:
                         if (root.focusedZone === 2 || root.focusedZone === 3) {
-                            root.focusedZone = 2
+                            root.focusedZone = 3  // notifications is left
                             root.row1Column = 0
+                        } else if (root.focusedZone === 0 || root.focusedZone === 1) {
+                            root.focusedZone = 0  // clock is left
+                            root.row0Column = 0
                         }
                         event.accepted = true
                         break
                     case Qt.Key_L:
                         if (root.focusedZone === 2 || root.focusedZone === 3) {
-                            root.focusedZone = 3
+                            root.focusedZone = 2  // calendar is right
                             root.row1Column = 1
+                        } else if (root.focusedZone === 0 || root.focusedZone === 1) {
+                            root.focusedZone = 1  // weather is right
+                            root.row0Column = 1
                         }
                         event.accepted = true
                         break
@@ -426,7 +487,17 @@ Scope {
                     switch (event.key) {
                     case Qt.Key_Return:
                     case Qt.Key_Enter:
-                        executePendingAction()
+                        if (root._confirmFocus === 0) {
+                            executePendingAction()
+                        } else {
+                            root.navMode = "zone"
+                            root.pendingPowerAction = []
+                        }
+                        event.accepted = true
+                        break
+                    case Qt.Key_J:
+                    case Qt.Key_K:
+                        root._confirmFocus = root._confirmFocus === 0 ? 1 : 0
                         event.accepted = true
                         break
                     case Qt.Key_Escape:
@@ -503,6 +574,7 @@ Scope {
                     z6.activate(index)
                 } else if (zone === 7) {
                     root.pendingPowerAction = z7.actionCmd(index)
+                    root._confirmFocus = 0
                     root.navMode = "confirm"
                 }
             }
@@ -569,7 +641,7 @@ Scope {
                         zoneName: root.navMode !== "view"
                             ? (root.zoneMeta[root.focusedZone]?.name ?? "")
                             : "Control Center"
-                        itemName: root.navMode === "zone"
+                        itemName: (root.navMode === "zone" || root.navMode === "confirm")
                             ? root.currentItemName(root.focusedZone, root.zoneItemIndex)
                             : ""
                     }
@@ -595,44 +667,13 @@ Scope {
                             zoneActive: root.navMode !== "view" && root.focusedZone === 1
                             inZoneMode: root.navMode === "zone" && root.focusedZone === 1
                             currentItemIndex: 0
-                        }
-                    }
 
-                    Rectangle { width: parent.width; height: 1; color: Colors.subtle }
-
-                    Metrics {
-                        id: z5
-                        width: parent.width
-                        em: win.em
-                        zoneActive: root.navMode !== "view" && root.focusedZone === 5
-                        inZoneMode: false
-                        currentItemIndex: 0
-                    }
-
-                    Rectangle { width: parent.width; height: 1; color: Colors.subtle }
-
-                    Row {
-                        width: parent.width
-
-                        Calendar {
-                            id: z2
-                            width: parent.width / 2
-                            em: win.em
-                            zoneActive: root.navMode !== "view" && root.focusedZone === 2
-                            inZoneMode: root.navMode === "zone" && root.focusedZone === 2
-                            currentItemIndex: root.focusedZone === 2 ? root.zoneItemIndex : 0
-                        }
-
-                        Rectangle { width: 1; height: z2.height; color: Colors.subtle }
-
-                        Notifications {
-                            id: z3
-                            width: parent.width / 2 - 1
-                            em: win.em
-                            zoneActive: root.navMode !== "view" && root.focusedZone === 3
-                            inZoneMode: root.navMode === "zone" && root.focusedZone === 3
-                            currentItemIndex: root.focusedZone === 3 ? root.zoneItemIndex : 0
-                            calHeight: z2.implicitHeight
+                            MouseArea {
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: z1.refresh()
+                            }
                         }
                     }
 
@@ -649,6 +690,33 @@ Scope {
 
                     Rectangle { width: parent.width; height: 1; color: Colors.subtle }
 
+                    Row {
+                        width: parent.width
+
+                        Notifications {
+                            id: z3
+                            width: parent.width / 2
+                            em: win.em
+                            zoneActive: root.navMode !== "view" && root.focusedZone === 3
+                            inZoneMode: root.navMode === "zone" && root.focusedZone === 3
+                            currentItemIndex: root.focusedZone === 3 ? root.zoneItemIndex : 0
+                            calHeight: z2.implicitHeight
+                        }
+
+                        Rectangle { width: 1; height: z3.height; color: Colors.subtle }
+
+                        Calendar {
+                            id: z2
+                            width: parent.width / 2 - 1
+                            em: win.em
+                            zoneActive: root.navMode !== "view" && root.focusedZone === 2
+                            inZoneMode: root.navMode === "zone" && root.focusedZone === 2
+                            currentItemIndex: root.focusedZone === 2 ? root.zoneItemIndex : 0
+                        }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: Colors.subtle }
+
                     Media {
                         id: z6
                         width: parent.width
@@ -656,6 +724,17 @@ Scope {
                         zoneActive: root.navMode !== "view" && root.focusedZone === 6
                         inZoneMode: root.navMode === "zone" && root.focusedZone === 6
                         currentItemIndex: root.focusedZone === 6 ? root.zoneItemIndex : 0
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: Colors.subtle }
+
+                    Metrics {
+                        id: z5
+                        width: parent.width
+                        em: win.em
+                        zoneActive: root.navMode !== "view" && root.focusedZone === 5
+                        inZoneMode: false
+                        currentItemIndex: 0
                     }
 
                     Rectangle { width: parent.width; height: 1; color: Colors.subtle }
@@ -672,6 +751,7 @@ Scope {
                             root.focusedZone = 7
                             root.zoneItemIndex = index
                             root.pendingPowerAction = z7.actionCmd(index)
+                            root._confirmFocus = 0
                             root.navMode = "confirm"
                         }
                     }

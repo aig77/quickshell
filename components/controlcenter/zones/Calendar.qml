@@ -52,9 +52,12 @@ Rectangle {
         + 6 * Math.round(em * 1.8)
         + Math.round(em * 1.4)
 
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     readonly property var _dayLabels: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 
@@ -84,15 +87,13 @@ Rectangle {
                 height: Math.round(root.em * 1.4)
                 radius: Math.round(root.em * 0.3)
                 color: parent.prevFocused
-                    ? Qt.rgba(Colors.green.r, Colors.green.g, Colors.green.b, 0.2)
+                    ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.12)
                     : "transparent"
-                border.width: parent.prevFocused ? 1 : 0
-                border.color: Colors.green
 
                 Text {
                     anchors.centerIn: parent
                     text: "<"
-                    color: parent.parent.prevFocused ? Colors.green : Colors.muted
+                    color: parent.parent.prevFocused ? Colors.fg : Colors.muted
                     font { family: Colors.font; pixelSize: Math.round(root.em * 0.8) }
                 }
 
@@ -119,15 +120,13 @@ Rectangle {
                 height: Math.round(root.em * 1.4)
                 radius: Math.round(root.em * 0.3)
                 color: parent.nextFocused
-                    ? Qt.rgba(Colors.green.r, Colors.green.g, Colors.green.b, 0.2)
+                    ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.12)
                     : "transparent"
-                border.width: parent.nextFocused ? 1 : 0
-                border.color: Colors.green
 
                 Text {
                     anchors.centerIn: parent
                     text: ">"
-                    color: parent.parent.nextFocused ? Colors.green : Colors.muted
+                    color: parent.parent.nextFocused ? Colors.fg : Colors.muted
                     font { family: Colors.font; pixelSize: Math.round(root.em * 0.8) }
                 }
 
@@ -173,6 +172,8 @@ Rectangle {
                     width: Math.round(parent.width / 7)
                     height: Math.round(root.em * 1.8)
 
+                    HoverHandler { id: dayHover; enabled: isDay }
+
                     Rectangle {
                         anchors.centerIn: parent
                         width: Math.round(root.em * 1.6)
@@ -180,7 +181,9 @@ Rectangle {
                         radius: width / 2
                         color: isToday
                             ? Qt.rgba(Colors.blue.r, Colors.blue.g, Colors.blue.b, 0.3)
-                            : "transparent"
+                            : (isFocused || dayHover.hovered)
+                                ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.12)
+                                : "transparent"
                         border.width: isToday ? 1 : 0
                         border.color: Colors.blue
                     }
@@ -188,17 +191,18 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         text: isDay ? dayNum : ""
-                        color: isFocused ? Colors.green : isToday ? Colors.blue : Colors.fg
+                        color: isToday ? Colors.blue : Colors.fg
                         font {
                             family: Colors.font
                             pixelSize: Math.round(root.em * 0.8)
-                            bold: isToday || isFocused
+                            bold: isToday || isFocused || dayHover.hovered
                         }
                     }
 
                     MouseArea {
                         anchors.fill: parent
                         visible: isDay
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: {}
                     }
                 }

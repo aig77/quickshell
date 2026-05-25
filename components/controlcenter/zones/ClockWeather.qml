@@ -15,9 +15,12 @@ Rectangle {
     signal adjustValue(int delta)
 
     implicitHeight: Math.round(em * 6)
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     // --- Config ---
     property string weatherLocation: ""

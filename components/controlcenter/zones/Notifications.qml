@@ -30,9 +30,12 @@ Rectangle {
     implicitHeight: calHeight > 0 ? calHeight : Math.round(em * 12)
     property real calHeight: 0
 
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     Column {
         anchors {
@@ -73,7 +76,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.right: parent.right
                 text: "Clear"
-                color: root.clearFocused ? Colors.green : CCNotifModel.items.count > 0 ? Colors.muted : Colors.subtle
+                color: root.clearFocused ? Colors.fg : CCNotifModel.items.count > 0 ? Colors.muted : Colors.subtle
                 font { family: Colors.font; pixelSize: Math.round(root.em * 0.75); bold: root.clearFocused }
 
                 MouseArea {
@@ -134,11 +137,11 @@ Rectangle {
                 width: listView.width
                 height: Math.round(root.em * 2.4)
                 radius: Math.round(root.em * 0.3)
-                color: isFocused || isHovered
-                    ? Qt.rgba(Colors.surface.r, Colors.surface.g, Colors.surface.b, 1)
-                    : "transparent"
-                border.width: isFocused ? 1 : 0
-                border.color: Colors.green
+                color: isFocused
+                    ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.1)
+                    : isHovered
+                        ? Qt.rgba(Colors.surface.r, Colors.surface.g, Colors.surface.b, 1)
+                        : "transparent"
 
                 RowLayout {
                     anchors {

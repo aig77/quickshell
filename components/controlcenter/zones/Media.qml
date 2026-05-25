@@ -30,9 +30,12 @@ Rectangle {
     readonly property bool _hasPlayer: _player !== null
 
     implicitHeight: Math.round(em * 9.8)
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     // --- Cava ---
     property var cavaBars: []
@@ -174,7 +177,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         text: ctrlBtn.modelData.icon
-                        color: ctrlBtn.isFocused ? Colors.green : Colors.fg
+                        color: ctrlBtn.isFocused ? Colors.blue : Colors.fg
                         font { family: Colors.font; pixelSize: Math.round(root.em * 1.1) }
                     }
 

@@ -15,19 +15,52 @@ Rectangle {
     signal adjustValue(int delta)
 
     implicitHeight: Math.round(em * 6)
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     // --- Config ---
     property string weatherLocation: ""
     property string _weatherApiKeyPath: ""
     property string weatherText: ""
     property string _apiKey: ""
-    property bool _keyError: false
+    // true once the initial config read finishes (prevents premature error display)
+    property bool _configLoaded: false
+    // true only when key path is configured but the key file could not be read (transient)
+    property bool _keyTransientError: false
+    // true when key path is absent from config (permanent - not configured)
+    property bool _keyMissingError: false
+
+    property bool _keyError: _keyMissingError || _keyTransientError
+
+    function refresh() {
+        root._configLoaded = false
+        root._keyTransientError = false
+        root._keyMissingError = false
+        root._apiKey = ""
+        root.weatherText = ""
+        root._weatherApiKeyPath = ""
+        root.weatherLocation = ""
+        weatherConfigProc.running = true
+    }
 
     Component.onCompleted: {
         weatherConfigProc.running = true
+    }
+
+    // Retries the key read every 30s when in transient error (e.g. sops not ready yet)
+    Timer {
+        id: retryTimer
+        interval: 30000
+        running: root._configLoaded && root._keyTransientError
+        repeat: true
+        onTriggered: {
+            root._keyTransientError = false
+            keyReadProc.running = true
+        }
     }
 
     Process {
@@ -42,13 +75,20 @@ Rectangle {
                     if (loc.length > 0) root.weatherLocation = loc
                     if (keyPath.length > 0) root._weatherApiKeyPath = keyPath
                 } catch(e) {}
-                if (root._weatherApiKeyPath.length > 0)
+                if (root._weatherApiKeyPath.length > 0) {
                     keyReadProc.running = true
-                else
-                    root._keyError = true
+                } else {
+                    root._configLoaded = true
+                    root._keyMissingError = true
+                }
             }
         }
-        onExited: (code) => { if (code !== 0) root._keyError = true }
+        onExited: (code) => {
+            if (code !== 0) {
+                root._configLoaded = true
+                root._keyMissingError = true
+            }
+        }
     }
 
     Process {
@@ -60,10 +100,16 @@ Rectangle {
                     const json = JSON.parse(text.trim())
                     root._apiKey = json.weather_api_key ?? ""
                 } catch(e) {}
-                if (root._apiKey.length === 0) root._keyError = true
+                root._configLoaded = true
+                if (root._apiKey.length === 0) root._keyTransientError = true
             }
         }
-        onExited: (code) => { if (code !== 0) root._keyError = true }
+        onExited: (code) => {
+            if (code !== 0) {
+                root._configLoaded = true
+                root._keyTransientError = true
+            }
+        }
     }
 
     function conditionEmoji(code, isDay) {
@@ -125,9 +171,18 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             color: Colors.subtle
             font { family: Colors.font; pixelSize: Math.round(root.em * 0.75) }
-            text: "no weather api key"
-            visible: root._keyError
+            text: root._keyMissingError ? "weather key not configured" : "weather key unavailable"
+            visible: root._configLoaded && root._keyError
             opacity: 0.6
+        }
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            color: Colors.subtle
+            font { family: Colors.font; pixelSize: Math.round(root.em * 0.6) }
+            text: "click to retry"
+            visible: root._configLoaded && root._keyError
+            opacity: 0.4
         }
     }
 }

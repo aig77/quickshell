@@ -18,9 +18,12 @@ Rectangle {
     signal adjustValue(int delta)
 
     implicitHeight: Math.round(em * 6)
-    color: "transparent"
-    border.width: root.zoneActive ? 2 : 0
-    border.color: root.inZoneMode ? Colors.green : root.zoneActive ? Colors.blue : "transparent"
+    HoverHandler { id: zoneHover }
+
+    color: root.inZoneMode ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.08)
+         : (root.zoneActive || zoneHover.hovered) ? Qt.rgba(Colors.fg.r, Colors.fg.g, Colors.fg.b, 0.04)
+         : "transparent"
+    Behavior on color { ColorAnimation { duration: 120 } }
 
     // --- Brightness ---
     property real brightnessRatio: 0
@@ -175,6 +178,8 @@ Rectangle {
 
         height: Math.round(root.em * 2.4)
 
+        HoverHandler { id: sliderHover }
+
         Row {
             anchors {
                 verticalCenter: parent.verticalCenter
@@ -191,7 +196,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: sliderRow.toggled ? sliderRow.iconOn : sliderRow.iconOff
-                    color: !sliderRow.enabled_ ? Colors.subtle : sliderRow.focused ? Colors.blue : Colors.muted
+                    color: !sliderRow.enabled_ ? Colors.subtle : (sliderRow.focused || sliderHover.hovered) ? Colors.blue : Colors.muted
                     font {
                         family: Colors.font
                         pixelSize: Math.round(root.em * 1.1)
@@ -237,7 +242,7 @@ Rectangle {
                     width: Math.round(root.em * 0.9)
                     height: width
                     radius: width / 2
-                    color: sliderRow.focused ? Colors.blue : Colors.fg
+                    color: (sliderRow.focused || sliderHover.hovered) ? Colors.blue : Colors.fg
                     visible: sliderRow.enabled_
                     Behavior on x {
                         NumberAnimation {
@@ -267,7 +272,7 @@ Rectangle {
                 id: pctLabel
                 anchors.verticalCenter: parent.verticalCenter
                 text: Math.round(sliderRow.value * 100) + "%"
-                color: sliderRow.enabled_ ? (sliderRow.focused ? Colors.fg : Colors.muted) : Colors.subtle
+                color: sliderRow.enabled_ ? ((sliderRow.focused || sliderHover.hovered) ? Colors.fg : Colors.muted) : Colors.subtle
                 opacity: sliderRow.enabled_ ? 1.0 : 0.4
                 font {
                     family: Colors.font
@@ -296,10 +301,12 @@ Rectangle {
         height: btnSize
         radius: btnSize / 2
 
-        color: on_ ? Qt.rgba(onColor.r, onColor.g, onColor.b, 0.2) : Qt.rgba(offColor.r, offColor.g, offColor.b, 0.08)
+        color: focused || btnHover.hovered
+            ? (on_ ? Qt.rgba(onColor.r, onColor.g, onColor.b, 0.3)  : Qt.rgba(offColor.r, offColor.g, offColor.b, 0.15))
+            : (on_ ? Qt.rgba(onColor.r, onColor.g, onColor.b, 0.2)  : Qt.rgba(offColor.r, offColor.g, offColor.b, 0.08))
 
-        border.width: focused ? 2 : 1
-        border.color: focused ? Colors.green : Qt.rgba(_activeColor.r, _activeColor.g, _activeColor.b, 0.5)
+        border.width: focused || btnHover.hovered ? 2 : 1
+        border.color: focused || btnHover.hovered ? _activeColor : Qt.rgba(_activeColor.r, _activeColor.g, _activeColor.b, 0.5)
 
         Behavior on color {
             ColorAnimation {
@@ -317,8 +324,11 @@ Rectangle {
             }
         }
 
+        HoverHandler { id: btnHover }
+
         MouseArea {
             anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
             onClicked: circleBtn.tapped()
         }
     }
