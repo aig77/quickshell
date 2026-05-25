@@ -3,7 +3,5 @@ singleton Colors 1.0 Colors.qml
 # Dock 1.0 Dock.qml
 WorkspacePill 1.0 WorkspacePill.qml
 Launcher 1.0 Launcher.qml
-Lockscreen 1.0 Lockscreen.qml
-LockSurface 1.0 LockSurface.qml
 NotificationStack 1.0 notifications/NotificationStack.qml
 ControlCenter 1.0 ControlCenter.qml

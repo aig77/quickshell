@@ -10,7 +10,6 @@ import "./components/overview/common/"
 
 ShellRoot {
     Launcher {}
-    Lockscreen {}
     Overview {}
     NotificationStack {}
     WorkspacePill {}
