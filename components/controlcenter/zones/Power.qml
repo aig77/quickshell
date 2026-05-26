@@ -8,10 +8,8 @@ Rectangle {
 
     property real em: 16
     property bool zoneActive: false
-    property bool inZoneMode: false
+    property int focusedIndex: -1  // 0-3 = which button is focused; -1 = none
     property bool confirmMode: false
-    property int currentItemIndex: 0
-    property int selectableCount: 4
 
     signal activated(int index)
     signal adjustValue(int delta)
@@ -71,8 +69,8 @@ Rectangle {
                     required property var modelData
                     required property int index
 
-                    readonly property bool isFocused: root.inZoneMode && root.currentItemIndex === index
-                    readonly property bool isConfirming: root.confirmMode && root.currentItemIndex === index
+                    readonly property bool isFocused: root.focusedIndex === index
+                    readonly property bool isConfirming: root.confirmMode && root.focusedIndex === index
 
                     readonly property real btnSize: Math.round(root.em * 2.8)
                     width: btnSize
