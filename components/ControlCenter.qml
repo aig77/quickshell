@@ -15,10 +15,11 @@ Scope {
     // --- Navigation state ---
     property bool open: false
     property string navMode: "view"  // "view" | "panel" | "zone" | "confirm"
-    property int focusedZone: 0        // 0-7
+    property int focusedZone: 0        // 0-10
     property int zoneItemIndex: 0
     property int row0Column: 1         // 0=clock, 1=weather (sticky; clock is not keyboard-navigable so always start at weather)
     property int row1Column: 0         // 0=notifications, 1=calendar (sticky)
+    property int powerColumn: 0        // 0-3 = shutdown/restart/sleep/lock (sticky)
     property var pendingPowerAction: []
     property int _confirmFocus: 0  // 0=Confirm, 1=Cancel
 
@@ -42,11 +43,14 @@ Scope {
         { icon: "󰁝", name: "Controls",          },
         { icon: "󰻠", name: "Metrics",           },
         { icon: "󰝚", name: "Media",             },
-        { icon: "⏻",  name: "Power",             }
+        { icon: "⏻",  name: "Shutdown",          },
+        { icon: "",  name: "Restart",           },
+        { icon: "󰒲", name: "Sleep",             },
+        { icon: "󰌾", name: "Lock",              },
     ]
 
-    // Row order matches visual layout: Clock/Weather | Controls | Notifications/Calendar | Media | Metrics | Power
-    readonly property var _rows: [[0, 1], [4], [3, 2], [6], [5], [7]]
+    // Row order matches visual layout: Clock/Weather | Controls | Notifications/Calendar | Media | Metrics | Power(x4)
+    readonly property var _rows: [[0, 1], [4], [3, 2], [6], [5], [7, 8, 9, 10]]
 
     function nextZone(current, dir) {
         let ri = _rows.findIndex(r => r.includes(current))
@@ -54,6 +58,7 @@ Scope {
         const row = _rows[ri]
         if (row.length === 1) return row[0]
         if (ri === 0) return row[root.row0Column]
+        if (ri === 5) return row[root.powerColumn]
         return row[root.row1Column]
     }
 
@@ -74,7 +79,6 @@ Scope {
             case 1: return "Refresh"
             case 4: return (["Volume", "Brightness", "Blue Light", "Idle Inhibit"])[index] ?? ""
             case 6: return (["Previous", "Play/Pause", "Next"])[index] ?? ""
-            case 7: return (["Shutdown", "Restart", "Sleep", "Lock"])[index] ?? ""
             default: return ""
         }
     }
@@ -85,6 +89,7 @@ Scope {
             navMode = "view"
             focusedZone = 0
             zoneItemIndex = 0
+            powerColumn = 0
             pendingPowerAction = []
         }
     }
@@ -104,7 +109,7 @@ Scope {
         readonly property real _panelW: screen ? Math.min(Math.round(screen.width * 0.4), 600) : 480
 
         // Height of everything below the notification zone (media + metrics + power + 3 separators)
-        readonly property real _belowNotifH: Math.round(win.em * 9.8) + Math.round(win.em * 5) + Math.round(win.em * 4.5) + 3
+        readonly property real _belowNotifH: Math.round(win.em * 9.2) + Math.round(win.em * 5) + Math.round(win.em * 4.5) + 3
         readonly property real _notifZoneH: z2.implicitHeight
         readonly property real _notifZoneTopY: screen
             ? Math.round((screen.height - panel.implicitHeight) / 2)
@@ -308,21 +313,38 @@ Scope {
         anchors.left: true
         anchors.right: true
         color: "transparent"
-        visible: root.open
+        visible: root.open || scrimRect.opacity > 0
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         WlrLayershell.namespace: "quickshell:controlcenter:scrim"
 
         Rectangle {
+            id: scrimRect
             anchors.fill: parent
             color: Qt.rgba(0, 0, 0, 0.5)
+            opacity: 0.0
 
-            opacity: root.open ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 180 } }
+            NumberAnimation { id: scrimOpenAnim; target: scrimRect; property: "opacity"; to: 1.0; duration: 180 }
+            NumberAnimation { id: scrimCloseAnim; target: scrimRect; property: "opacity"; to: 0.0; duration: 180 }
+            Connections {
+                target: root
+                function onOpenChanged() {
+                    if (root.open) {
+                        scrimCloseAnim.stop()
+                        scrimRect.opacity = 0.0
+                        scrimOpenAnim.start()
+                    } else {
+                        scrimOpenAnim.stop()
+                        if (scrimRect.opacity > 0)
+                            scrimCloseAnim.start()
+                    }
+                }
+            }
 
             MouseArea {
                 anchors.fill: parent
+                enabled: root.open
                 onClicked: root.open = false
             }
         }
@@ -333,10 +355,10 @@ Scope {
         id: win
         anchors.top: true
         color: "transparent"
-        visible: root.open
+        visible: root.open || panel.opacity > 0
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        WlrLayershell.keyboardFocus: root.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         WlrLayershell.namespace: "quickshell:controlcenter"
 
         readonly property real em: screen ? Math.round(screen.height * 0.018) : 16
@@ -392,6 +414,10 @@ Scope {
                     case Qt.Key_Enter:
                         if (root.focusedZone === 1) {
                             z1.refresh()
+                        } else if (root.focusedZone >= 7 && root.focusedZone <= 10) {
+                            root.pendingPowerAction = z7.actionCmd(root.focusedZone - 7)
+                            root._confirmFocus = 0
+                            root.navMode = "confirm"
                         } else if (zoneSelectableCount(root.focusedZone) > 0) {
                             root.navMode = "zone"
                             root.zoneItemIndex = 0
@@ -404,6 +430,8 @@ Scope {
                             root.row1Column = root.focusedZone === 3 ? 0 : 1
                         if (root.focusedZone === 0 || root.focusedZone === 1)
                             root.row0Column = root.focusedZone
+                        if (root.focusedZone >= 7 && root.focusedZone <= 10)
+                            root.powerColumn = root.focusedZone - 7
                         event.accepted = true
                         break
                     case Qt.Key_K:
@@ -412,10 +440,15 @@ Scope {
                             root.row1Column = root.focusedZone === 3 ? 0 : 1
                         if (root.focusedZone === 0 || root.focusedZone === 1)
                             root.row0Column = root.focusedZone
+                        if (root.focusedZone >= 7 && root.focusedZone <= 10)
+                            root.powerColumn = root.focusedZone - 7
                         event.accepted = true
                         break
                     case Qt.Key_H:
-                        if (root.focusedZone === 2 || root.focusedZone === 3) {
+                        if (root.focusedZone >= 7 && root.focusedZone <= 10) {
+                            root.powerColumn = Math.max(0, root.focusedZone - 7 - 1)
+                            root.focusedZone = 7 + root.powerColumn
+                        } else if (root.focusedZone === 2 || root.focusedZone === 3) {
                             root.focusedZone = 3  // notifications is left
                             root.row1Column = 0
                         } else if (root.focusedZone === 0 || root.focusedZone === 1) {
@@ -425,7 +458,10 @@ Scope {
                         event.accepted = true
                         break
                     case Qt.Key_L:
-                        if (root.focusedZone === 2 || root.focusedZone === 3) {
+                        if (root.focusedZone >= 7 && root.focusedZone <= 10) {
+                            root.powerColumn = Math.min(3, root.focusedZone - 7 + 1)
+                            root.focusedZone = 7 + root.powerColumn
+                        } else if (root.focusedZone === 2 || root.focusedZone === 3) {
                             root.focusedZone = 2  // calendar is right
                             root.row1Column = 1
                         } else if (root.focusedZone === 0 || root.focusedZone === 1) {
@@ -572,8 +608,8 @@ Scope {
                     z4.toggle(index)
                 } else if (zone === 6) {
                     z6.activate(index)
-                } else if (zone === 7) {
-                    root.pendingPowerAction = z7.actionCmd(index)
+                } else if (zone >= 7 && zone <= 10) {
+                    root.pendingPowerAction = z7.actionCmd(zone - 7)
                     root._confirmFocus = 0
                     root.navMode = "confirm"
                 }
@@ -594,7 +630,6 @@ Scope {
                     case 3: return z3.selectableCount
                     case 4: return z4.selectableCount
                     case 6: return z6.selectableCount
-                    case 7: return z7.selectableCount
                     default: return 0
                 }
             }
@@ -602,20 +637,39 @@ Scope {
             function executePendingAction() {
                 if (root.pendingPowerAction.length > 0) {
                     const cmd = root.pendingPowerAction
-                    const isLock = cmd.length === 1 && cmd[0] === "hyprlock"
-                    if (isLock) {
-                        // Start hyprlock first so ext-session-lock-v1 covers the screen,
-                        // then close the CC in the background behind the lock surface.
-                        const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', keyArea)
-                        proc.command = cmd
-                        proc.running = true
-                        Qt.callLater(() => { root.open = false })
+                    // Lock and sleep both leave the session alive and resume to the same
+                    // desktop, so any mid-animation compositor frames will ghost on resume.
+                    const needsInstantClose = (cmd.length === 1 && cmd[0] === "hyprlock")
+                        || (cmd.length === 2 && cmd[0] === "systemctl" && cmd[1] === "suspend")
+                    if (needsInstantClose) {
+                        panelOpenAnim.stop()
+                        panelCloseAnim.stop()
+                        panel.opacity = 0.0
+                        panel.scale = 0.96
+                        scrimOpenAnim.stop()
+                        scrimCloseAnim.stop()
+                        scrimRect.opacity = 0.0
+                        root.open = false
+                        CCState.locking()
+                        lockDelay._cmd = cmd
+                        lockDelay.start()
                     } else {
                         root.open = false
                         const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', keyArea)
                         proc.command = cmd
                         proc.running = true
                     }
+                }
+            }
+
+            Timer {
+                id: lockDelay
+                interval: 50
+                property var _cmd: []
+                onTriggered: {
+                    const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', keyArea)
+                    proc.command = _cmd
+                    proc.running = true
                 }
             }
 
@@ -630,10 +684,34 @@ Scope {
                 border.width: 1
                 border.color: Colors.subtle
 
-                opacity: root.open ? 1.0 : 0.0
-                scale: root.open ? 1.0 : 0.96
-                Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                opacity: 0.0
+                scale: 0.96
+
+                ParallelAnimation {
+                    id: panelOpenAnim
+                    NumberAnimation { target: panel; property: "opacity"; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: panel; property: "scale"; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
+                }
+                ParallelAnimation {
+                    id: panelCloseAnim
+                    NumberAnimation { target: panel; property: "opacity"; to: 0.0; duration: 180; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: panel; property: "scale"; to: 0.96; duration: 180; easing.type: Easing.OutCubic }
+                }
+                Connections {
+                    target: root
+                    function onOpenChanged() {
+                        if (root.open) {
+                            panelCloseAnim.stop()
+                            panel.opacity = 0.0
+                            panel.scale = 0.96
+                            panelOpenAnim.start()
+                        } else {
+                            panelOpenAnim.stop()
+                            if (panel.opacity > 0)
+                                panelCloseAnim.start()
+                        }
+                    }
+                }
 
                 Column {
                     id: panelCol
@@ -648,7 +726,9 @@ Scope {
                         zoneName: root.navMode !== "view"
                             ? (root.zoneMeta[root.focusedZone]?.name ?? "")
                             : "Control Center"
-                        itemName: (root.navMode === "zone" || root.navMode === "confirm")
+                        itemName: root.navMode === "confirm"
+                            ? (root._confirmFocus === 0 ? "Confirm" : "Cancel")
+                            : root.navMode === "zone"
                             ? root.currentItemName(root.focusedZone, root.zoneItemIndex)
                             : ""
                     }
@@ -750,13 +830,12 @@ Scope {
                         id: z7
                         width: parent.width
                         em: win.em
-                        zoneActive: root.navMode !== "view" && root.focusedZone === 7
-                        inZoneMode: root.navMode === "zone" && root.focusedZone === 7
+                        zoneActive: root.navMode !== "view" && root.focusedZone >= 7 && root.focusedZone <= 10
+                        focusedIndex: (root.focusedZone >= 7 && root.focusedZone <= 10) ? root.focusedZone - 7 : -1
                         confirmMode: root.navMode === "confirm"
-                        currentItemIndex: root.focusedZone === 7 ? root.zoneItemIndex : 0
                         onActivated: index => {
-                            root.focusedZone = 7
-                            root.zoneItemIndex = index
+                            root.focusedZone = 7 + index
+                            root.powerColumn = index
                             root.pendingPowerAction = z7.actionCmd(index)
                             root._confirmFocus = 0
                             root.navMode = "confirm"

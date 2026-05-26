@@ -46,17 +46,48 @@ PanelWindow {
     anchors.horizontalCenter: parent.horizontalCenter
     spacing: 4
 
-    opacity: (root.showing || root.forceShow) ? 1.0 : 0.0
-    Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+    opacity: 0.0
+    transform: Translate { id: pillTranslate; y: 16 }
 
-    transform: Translate {
-      y: (root.showing || root.forceShow) ? 0 : 16
-      Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+    NumberAnimation { id: pillShowOpacity;  target: pill;          property: "opacity"; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
+    NumberAnimation { id: pillHideOpacity;  target: pill;          property: "opacity"; to: 0.0; duration: 200; easing.type: Easing.OutCubic }
+    NumberAnimation { id: pillSlideIn;      target: pillTranslate; property: "y";       to: 0;   duration: 200; easing.type: Easing.OutCubic }
+    NumberAnimation { id: pillSlideOut;     target: pillTranslate; property: "y";       to: 16;  duration: 200; easing.type: Easing.OutCubic }
+
+    function updateVisibility() {
+      const vis = root.showing || root.forceShow
+      if (vis) {
+        pillHideOpacity.stop()
+        pillSlideOut.stop()
+        pill.opacity = 0.0
+        pillTranslate.y = 16
+        pillShowOpacity.start()
+        pillSlideIn.start()
+      } else {
+        pillShowOpacity.stop()
+        pillSlideIn.stop()
+        pillHideOpacity.start()
+        pillSlideOut.start()
+      }
+    }
+
+    Connections {
+      target: root
+      function onShowingChanged()   { pill.updateVisibility() }
+      function onForceShowChanged() { pill.updateVisibility() }
     }
 
     Connections {
       target: CCState
       function onOpenChanged() { root.forceShow = CCState.open }
+      function onLocking() {
+        pillShowOpacity.stop()
+        pillSlideIn.stop()
+        pillHideOpacity.stop()
+        pillSlideOut.stop()
+        pill.opacity = 0.0
+        pillTranslate.y = 16
+      }
     }
 
     // Workspace pill

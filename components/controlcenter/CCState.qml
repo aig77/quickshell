@@ -3,4 +3,5 @@ import QtQuick
 
 QtObject {
     property bool open: false
+    signal locking()
 }
