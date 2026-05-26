@@ -133,11 +133,12 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: notif?.summary ?? ""
+                    text: (notif?.summary?.length ?? 0) > 0 ? notif.summary
+                        : (notif?.appName?.length ?? 0) > 0 ? notif.appName
+                        : "Notification"
                     color: Colors.fg
                     font { family: Colors.font; pixelSize: 14; bold: true }
                     wrapMode: Text.WordWrap
-                    visible: (notif?.summary?.length ?? 0) > 0
                 }
 
                 Text {
@@ -156,7 +157,9 @@ Item {
                     color: Colors.muted
                     font { family: Colors.font; pixelSize: 11 }
                     elide: Text.ElideRight
-                    visible: iconProbe.status !== Image.Ready && (notif?.appName?.length ?? 0) > 0
+                    visible: iconProbe.status !== Image.Ready
+                        && (notif?.appName?.length ?? 0) > 0
+                        && (notif?.summary?.length ?? 0) > 0
                 }
             }
         }

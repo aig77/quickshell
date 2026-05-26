@@ -187,10 +187,12 @@ Rectangle {
                         }
                     }
 
-                    // App name
+                    // App name / summary fallback
                     Text {
                         Layout.fillWidth: true
-                        text: notifRow.model.appName ?? ""
+                        text: (notifRow.model.appName?.length ?? 0) > 0 ? notifRow.model.appName
+                            : (notifRow.model.summary?.length ?? 0) > 0 ? notifRow.model.summary
+                            : "Notification"
                         color: Colors.fg
                         font { family: Colors.font; pixelSize: Math.round(root.em * 0.75); bold: true }
                         elide: Text.ElideRight
